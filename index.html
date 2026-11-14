@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>演唱會秒殺搶票系統</title>
+    <!-- 引入簡單的 CSS 框架以美化按鈕與版面 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* 套用卡其色背景與軍綠色主題 */
+        body {
+            background-color: #F0E6D2; /* 卡其色 */
+            font-family: "Microsoft JhengHei", sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .ticket-card {
+            background-color: white;
+            border-top: 6px solid #4A5D23; /* 軍綠色 */
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+        }
+        .btn-buy {
+            background-color: #4A5D23; /* 軍綠色按鈕 */
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 12px 0;
+            width: 100%;
+            border-radius: 8px;
+            border: none;
+            transition: 0.3s;
+        }
+        .btn-buy:hover {
+            background-color: #3b4a1c;
+            color: white;
+        }
+        .btn-buy:disabled {
+            background-color: #a5a5a5;
+            cursor: not-allowed;
+        }
+        .stock-display {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #d9534f; /* 紅色凸顯緊張感 */
+            margin: 15px 0;
+        }
+        #message-box {
+            min-height: 24px;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="ticket-card">
+    <h3 class="mb-3 text-dark">🎸 2026 跨年演唱會</h3>
+    <p class="text-muted mb-1">剩餘票數</p>
+    <div class="stock-display" id="stock-count">--</div>
+    
+    <!-- 模擬登入：讓使用者隨機獲得一個 ID 來模擬不同的人 -->
+    <div class="input-group mb-4 mt-3">
+        <span class="input-group-text">使用者ID</span>
+        <input type="text" id="user-id" class="form-control text-center" readonly>
+    </div>
+
+    <button id="buy-btn" class="btn-buy" onclick="buyTicket()">🎟️ 立即搶票</button>
+    <div id="message-box" class="text-primary">系統就緒，準備開搶！</div>
+</div>
+
+<script>
+    
+    const WS_URL = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/stock"; // WebSocket 位址
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const randomId = "U_" + Math.floor(Math.random() * 10000);
+        document.getElementById("user-id").value = randomId;
+        
+        connectWebSocket();
+    });
+
+    function connectWebSocket() {
+        const ws = new WebSocket(WS_URL);
+        
+        // 當接收到後端 Pub/Sub 推播的訊息時
+        ws.onmessage = function(event) {
+            const stockElement = document.getElementById("stock-count");
+            const buyBtn = document.getElementById("buy-btn");
+            const currentStock = parseInt(event.data);
+            
+            stockElement.innerText = currentStock;
+
+            // 如果票賣光了，立即鎖死按鈕
+            if (currentStock <= 0) {
+                stockElement.innerText = "0";
+                buyBtn.disabled = true;
+                buyBtn.innerText = "已售完";
+            }
+        };
+
+        ws.onclose = function() {
+            setTimeout(connectWebSocket, 2000);
+        };
+    }
+
+    async function buyTicket() {
+        const userId = document.getElementById("user-id").value;
+        const msgBox = document.getElementById("message-box");
+        const buyBtn = document.getElementById("buy-btn");
+
+        buyBtn.disabled = true;
+        buyBtn.innerText = "搶購中...";
+        msgBox.className = "text-secondary";
+        msgBox.innerText = "正在送出訂單...";
+
+        try {
+            const response = await fetch("/api/buy", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                msgBox.className = "text-success";
+                msgBox.innerText = "🎉 " + result.message;
+                // 注意：這裡不用再手動要庫存數字了！WebSocket 會自動把最新的數字推播下來
+            } else {
+                msgBox.className = "text-danger";
+                msgBox.innerText = "❌ " + result.detail;
+                if (result.detail !== "票已售完！") {
+                     buyBtn.disabled = false;
+                     buyBtn.innerText = "🎟️ 立即搶票";
+                }
+            }
+        } catch (error) {
+            msgBox.className = "text-danger";
+            msgBox.innerText = "⚠️ 網路連線錯誤";
+            buyBtn.disabled = false;
+            buyBtn.innerText = "🎟️ 立即搶票";
+        }
+    }
+</script>
+
+</body>
+</html>
+
