@@ -48,4 +48,10 @@ $env:TEST_REDIS_URL = 'redis://127.0.0.1:6379/1'
 
 ## 本機實測結果（2026-11-14）
 
-使用隔離的 Redis 8.0.5 實例。100 個不同代號競購 10 張票，成功 10 筆，庫存歸零，買家及佇列各 10 筆。整合測試中，兩條 WebSocket 皆收到庫存從 10 更新為 9。重複購票回傳 HTTP 400。Worker 取出並完成該筆模擬訂單，佇列回到 0。公開 HTTPS 與雲端資料庫待部署後驗收。
+使用隔離的 Redis 8.0.5 實例。100 個不同代號競購 10 張票，成功 10 筆，庫存歸零，買家及佇列各 10 筆。整合測試中，兩條 WebSocket 皆收到庫存從 10 更新為 9。重複購票回傳 HTTP 400。Worker 取出並完成該筆模擬訂單，佇列回到 0。
+
+## 目前的公開部署
+
+- [Render 搶票示範](https://redis-concert-ticket-system.onrender.com/) 使用免費 Web Service 與 Redis 相容的 Key Value。
+- 雲端實測購票成功，兩個分頁庫存透過 WSS 同步由 10 變為 9。雲端訂單會入列，Worker 取單及模擬處理已於本機驗證。上方 Background Worker 步驟適用於另行部署。
+- GitHub `main` 為部署版。[學校 Drive](https://drive.google.com/drive/folders/1709z8aGOYQzZ3TDJepCkl-B3S5CBAO9N) 收錄原始本機版、簡報、影片、UML 與 Redis 匯出。
